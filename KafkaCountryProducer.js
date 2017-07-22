@@ -84,7 +84,7 @@ function produceCountryMessage(country) {
             console.log(data);
             // TODO: Should do error checking here first
             payloads = [];
-    });
+        });
     } else {
         console.error("CountryProducer is not ready yet, message queued.");
     }
