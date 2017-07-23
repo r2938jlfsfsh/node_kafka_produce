@@ -7,6 +7,7 @@ to schedule itself to process the next msg record in the same way. Depending on 
 
 var fs = require('fs');
 var parse = require('csv-parse');
+var dt = require('node-datetime');
 
 // Kafka configuration
 var kafka = require('kafka-node')
@@ -15,7 +16,7 @@ var Producer = kafka.Producer
 var client = new kafka.Client("localhost:32181/")
 
 // name of the topic to produce to
-var kafkaTopic = "jobStatus",
+var kafkaTopic = process.argv[2] || "jobStatusX",
     KeyedMessage = kafka.KeyedMessage,
     producer = new Producer(client),
     km = new KeyedMessage('key', 'message'),
@@ -31,8 +32,8 @@ producer.on('error', function (err) {
 });
 
 var inputFile='job_status.csv';
-var averageDelay = 10000;  // in miliseconds
-var spreadInDelay = 2000; // in miliseconds
+var averageDelay = 3000;  // in miliseconds
+var spreadInDelay = 1000; // in miliseconds
 
 var messageArray ;
 
@@ -57,6 +58,7 @@ function handleMessage( currentRecord, headerRecord) {
         for (var i = 0; i < header.length; i++) {
             msg[header[i].trim()] = line[i];
         };
+        msg['_msgTimestamp'] = dt.create().format('YmdHMSN');
         console.log(JSON.stringify(msg));
         // produce message to Kafka
         produceMessage(msg);
