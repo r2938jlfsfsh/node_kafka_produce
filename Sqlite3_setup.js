@@ -9,31 +9,10 @@ var fs = require('fs');
 var parse = require('csv-parse');
 var dt = require('node-datetime');
 
-// Kafka configuration
-var kafka = require('kafka-node')
-var Producer = kafka.Producer
-// instantiate client with as connectstring host:port for  the ZooKeeper for the Kafka cluster
-var client = new kafka.Client("localhost:32181/")
-
-// name of the topic to produce to
-var kafkaTopic = process.argv[2] || "jobStatusX",
-    KeyedMessage = kafka.KeyedMessage,
-    producer = new Producer(client),
-    km = new KeyedMessage('key', 'message'),
-    kafkaProducerReady = false ;
-
-producer.on('ready', function () {
-    console.log("Producer for ready for topic " + kafkaTopic);
-    kafkaProducerReady = true;
-});
-
-producer.on('error', function (err) {
-    console.error("Problem with producing Kafka message "+err);
-});
-
-var inputFile='job_status.csv';
-var averageDelay = 3000;  // in miliseconds
-var spreadInDelay = 1000; // in miliseconds
+var inputFile='job_status_init.csv';
+var dbFilename = '/home/rd/WebstormProjects/db/sqllite.db';
+var averageDelay = 3;  // in miliseconds
+var spreadInDelay = 1; // in miliseconds
 
 var messageArray ;
 
@@ -44,8 +23,48 @@ var parser = parse({delimiter: ','}, function (err, data) {
     handleMessage(1, 0);
 });
 
-// read the inputFile, feed the contents to the parser
-fs.createReadStream(inputFile).pipe(parser);
+var sqlite3 = require('sqlite3').verbose();
+try{
+    fs.unlinkSync(dbFilename);
+    console.log("Deleted existing file");
+} catch(err){
+    console.log("Failed to delete existing file");
+}
+
+var db = new sqlite3.Database(dbFilename);
+
+db.serialize(function() {
+    db.run("CREATE TABLE job_status (job_name text,source_system text,status text," +
+        " start_time integer, end_time integer, last_update integer)");
+
+    db.run("CREATE VIEW IF NOT EXISTS job_status_vw AS " +
+        "SELECT job_name, source_system, status, datetime(start_time, 'unixepoch', 'localtime') as start_time, " +
+        "datetime(end_time, 'unixepoch', 'localtime') as end_time, datetime(last_update, 'unixepoch', 'localtime') as _msgTimestamp" +
+        " FROM job_status");
+
+    var stmt = db.prepare("INSERT INTO job_status (job_name,source_system,last_update) " +
+        "VALUES (?,?,?)");
+    for (var i = 0; i < 10000; i=i+2) {
+        console.log("insert " + i + ", " + Math.floor(new Date() / 1000));
+        stmt.run("job" + i, 'CAP',Math.floor(new Date() / 1000));
+    }
+    stmt.finalize();
+
+/*    db.each("SELECT job_name, source_system, status, start_time, end_time, last_update, datetime(last_update, 'unixepoch', 'localtime') as last_update_dt" +
+        " FROM job_status"
+        , function(err, row) {
+        //console.log(row.id + ": " + row.info);
+            console.log(JSON.stringify(row));
+    });
+    */
+    db.each("SELECT * FROM job_status_vw"
+        , function(err, row) {
+            //console.log(row.id + ": " + row.info);
+            console.log(JSON.stringify(row));
+        });
+});
+
+db.close();
 
 var payloads = [];
 
@@ -61,9 +80,7 @@ function handleMessage( currentRecord, headerRecord) {
         msg['_msgTimestamp'] = dt.create().format('YmdHMSN');
         console.log(JSON.stringify(msg));
         // produce message to Kafka
-        for (i=1; i< 1000; i++) {
-            produceMessage(msg);
-        }
+        produceMessage(msg);
         // schedule this function to process next msg after a random delay of between averageDelay plus or minus spreadInDelay )
         var delay = averageDelay + (Math.random() - 0.5) * spreadInDelay;
         //note: use bind to pass in the value for the input parameter currentRecord
@@ -74,6 +91,9 @@ function handleMessage( currentRecord, headerRecord) {
         process.exit();
     }
 }//handleMessage
+
+
+
 
 function produceMessage(msg) {
     var KeyedMessage = kafka.KeyedMessage;
@@ -90,4 +110,7 @@ function produceMessage(msg) {
         console.error("Producer is not ready yet, message queued.");
     }
 }//produceMessage
+
+// read the inputFile, feed the contents to the parser
+//fs.createReadStream(inputFile).pipe(parser);
 
