@@ -8,6 +8,7 @@ to schedule itself to process the next msg record in the same way. Depending on 
 var fs = require('fs');
 var parse = require('csv-parse');
 var dt = require('node-datetime');
+var _ = require('underscore');
 
 // Kafka configuration
 var kafka = require('kafka-node')
@@ -16,14 +17,14 @@ var Producer = kafka.Producer
 var client = new kafka.Client("localhost:32181/")
 
 // name of the topic to produce to
-var kafkaTopic = process.argv[2] || "jobStatusX",
+var kafkaTopic = process.argv[2] || "jobStatus",
     KeyedMessage = kafka.KeyedMessage,
     producer = new Producer(client),
     km = new KeyedMessage('key', 'message'),
     kafkaProducerReady = false ;
 
 producer.on('ready', function () {
-    console.log("Producer for ready for topic " + kafkaTopic);
+    console.log("Producer ready");
     kafkaProducerReady = true;
 });
 
@@ -61,7 +62,7 @@ function handleMessage( currentRecord, headerRecord) {
         msg['_msgTimestamp'] = dt.create().format('YmdHMSN');
         console.log(JSON.stringify(msg));
         // produce message to Kafka
-        for (i=1; i< 1000; i++) {
+        for (i=1; i< 2; i++) {
             produceMessage(msg);
         }
         // schedule this function to process next msg after a random delay of between averageDelay plus or minus spreadInDelay )
@@ -78,11 +79,18 @@ function handleMessage( currentRecord, headerRecord) {
 function produceMessage(msg) {
     var KeyedMessage = kafka.KeyedMessage;
     var msgKM = new KeyedMessage(msg.code, JSON.stringify(msg));
-    payloads.push({ topic: kafkaTopic, messages: msgKM, partition: 0 });
+    var newMsg = _.range(100000).map(function () { return msgKM });
+
+    payloads.push({ topic: 'jobStatus', messages: newMsg, partition: 0 });
+    payloads.push({ topic: 'jobStatusX', messages: newMsg, partition: 0 });
 
     if (kafkaProducerReady) {
         producer.send(payloads, function (err, data) {
-            console.log(data);
+            if (err){
+                console.log("ERROR: send error " + err.toString());
+            } else {
+                console.log("Message sent");
+            }
             // TODO: Should do error checking here first
             payloads = [];
         });

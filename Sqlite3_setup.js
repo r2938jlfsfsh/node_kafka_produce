@@ -24,17 +24,20 @@ var parser = parse({delimiter: ','}, function (err, data) {
 });
 
 var sqlite3 = require('sqlite3').verbose();
+
+/*
 try{
     fs.unlinkSync(dbFilename);
     console.log("Deleted existing file");
 } catch(err){
     console.log("Failed to delete existing file");
 }
+*/
 
 var db = new sqlite3.Database(dbFilename);
 
 db.serialize(function() {
-    db.run("CREATE TABLE job_status (job_name text,source_system text,status text," +
+    db.run("CREATE TABLE IF NOT EXISTS job_status (job_name text,source_system text,status text," +
         " start_time integer, end_time integer, last_update integer)");
 
     db.run("CREATE VIEW IF NOT EXISTS job_status_vw AS " +
@@ -42,29 +45,43 @@ db.serialize(function() {
         "datetime(end_time, 'unixepoch', 'localtime') as end_time, datetime(last_update, 'unixepoch', 'localtime') as _msgTimestamp" +
         " FROM job_status");
 
+/*
     var stmt = db.prepare("INSERT INTO job_status (job_name,source_system,last_update) " +
         "VALUES (?,?,?)");
-    for (var i = 0; i < 10000; i=i+2) {
-        console.log("insert " + i + ", " + Math.floor(new Date() / 1000));
+    for (var i = 0; i < 100000; i=i+2) {
+        //console.log("insert " + i + ", " + Math.floor(new Date() / 1000));
         stmt.run("job" + i, 'CAP',Math.floor(new Date() / 1000));
     }
     stmt.finalize();
+*/
 
-/*    db.each("SELECT job_name, source_system, status, start_time, end_time, last_update, datetime(last_update, 'unixepoch', 'localtime') as last_update_dt" +
+    ['a','b','c','d','e','f','g','h','i'].forEach(function(val){
+        db.run("INSERT INTO job_status(job_name,source_system,last_update) SELECT job_name || ':' || ?, 'CAC', strftime('%s','now') " +
+            "FROM job_status " +
+            "WHERE job_name NOT LIKE '%:%'", val);
+    });
+
+    /*    db.each("SELECT job_name, source_system, status, start_time, end_time, last_update, datetime(last_update, 'unixepoch', 'localtime') as last_update_dt" +
         " FROM job_status"
         , function(err, row) {
         //console.log(row.id + ": " + row.info);
             console.log(JSON.stringify(row));
     });
     */
-    db.each("SELECT * FROM job_status_vw"
+/*    db.each("SELECT * FROM job_status_vw"
         , function(err, row) {
             //console.log(row.id + ": " + row.info);
             console.log(JSON.stringify(row));
-        });
+        });*/
 });
 
-db.close();
+db.close(function(err, data){
+    if (err){
+        console.log("ERROR closing");
+    } else {
+        console.log("DB closed successfully");
+    }
+});
 
 var payloads = [];
 
