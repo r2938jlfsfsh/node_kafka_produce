@@ -40,9 +40,11 @@ db.serialize(function() {
     db.run("CREATE TABLE IF NOT EXISTS job_status (job_name text,source_system text,status text," +
         " start_time integer, end_time integer, last_update integer)");
 
-    db.run("CREATE VIEW IF NOT EXISTS job_status_vw AS " +
+    db.run("DROP VIEW job_status_vw");
+
+    db.run("CREATE VIEW job_status_vw AS " +
         "SELECT job_name, source_system, status, datetime(start_time, 'unixepoch', 'localtime') as start_time, " +
-        "datetime(end_time, 'unixepoch', 'localtime') as end_time, datetime(last_update, 'unixepoch', 'localtime') as _msgTimestamp" +
+        "datetime(end_time, 'unixepoch', 'localtime') as end_time, strftime('%Y%m%d%H%M%S', last_update, 'unixepoch', 'localtime') as _msgTimestamp" +
         " FROM job_status");
 
 /*
@@ -54,12 +56,14 @@ db.serialize(function() {
     }
     stmt.finalize();
 */
+/*
 
     ['a','b','c','d','e','f','g','h','i'].forEach(function(val){
         db.run("INSERT INTO job_status(job_name,source_system,last_update) SELECT job_name || ':' || ?, 'CAC', strftime('%s','now') " +
             "FROM job_status " +
             "WHERE job_name NOT LIKE '%:%'", val);
     });
+*/
 
     /*    db.each("SELECT job_name, source_system, status, start_time, end_time, last_update, datetime(last_update, 'unixepoch', 'localtime') as last_update_dt" +
         " FROM job_status"

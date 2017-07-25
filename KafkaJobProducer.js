@@ -62,9 +62,8 @@ function handleMessage( currentRecord, headerRecord) {
         msg['_msgTimestamp'] = dt.create().format('YmdHMSN');
         console.log(JSON.stringify(msg));
         // produce message to Kafka
-        for (i=1; i< 2; i++) {
-            produceMessage(msg);
-        }
+        produceMessage(msg);
+
         // schedule this function to process next msg after a random delay of between averageDelay plus or minus spreadInDelay )
         var delay = averageDelay + (Math.random() - 0.5) * spreadInDelay;
         //note: use bind to pass in the value for the input parameter currentRecord
@@ -79,7 +78,7 @@ function handleMessage( currentRecord, headerRecord) {
 function produceMessage(msg) {
     var KeyedMessage = kafka.KeyedMessage;
     var msgKM = new KeyedMessage(msg.code, JSON.stringify(msg));
-    var newMsg = _.range(100000).map(function () { return msgKM });
+    var newMsg = _.range(2).map(function () { return msgKM });
 
     payloads.push({ topic: 'jobStatus', messages: newMsg, partition: 0 });
     payloads.push({ topic: 'jobStatusX', messages: newMsg, partition: 0 });
