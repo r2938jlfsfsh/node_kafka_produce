@@ -78,7 +78,7 @@ function handleMessage( currentRecord, headerRecord) {
 function produceMessage(msg) {
     var KeyedMessage = kafka.KeyedMessage;
     var msgKM = new KeyedMessage(msg.code, JSON.stringify(msg));
-    var newMsg = _.range(1000).map(function () { return msgKM });
+    var newMsg = _.range(2).map(function () { return msgKM });
 
     payloads.push({ topic: 'jobStatus', messages: newMsg, partition: 0 });
     payloads.push({ topic: 'jobStatusX', messages: newMsg, partition: 0 });
